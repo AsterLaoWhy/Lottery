@@ -1,6 +1,6 @@
 const { assert, expect } = require("chai")
 const { getNamedAccounts, deployments, ethers, network } = require("hardhat")
-const { developmentChains, networkConfig } = require("../helper-hardhat-config")
+const { developmentChains, networkConfig } = require("../../helper-hardhat-config")
 
 !developmentChains.includes(network.name)
     ? describe.skip
@@ -129,11 +129,15 @@ const { developmentChains, networkConfig } = require("../helper-hardhat-config")
                       ).to.be.revertedWith("nonexistent request")
                   })
                   it("picks a winner, resets, and sends money", async () => {
-                      const additionalEntrances = 3
-                      const startingIndex = 2
-                      for (let i = startingIndex; i < startingIndex + additionalEntrances; i++) {
-                          raffle = raffleContract.connect(accounts[i])
-                          await raffle.enterRaffle({ value: raffleEntranceFee })
+                      const additionalEntrants = 3
+                      const startingAccountIndex = 1
+                      for (
+                          let i = startingAccountIndex;
+                          i < startingAccountIndex + additionalEntrants;
+                          i++
+                      ) {
+                          const accountConnectedRaffle = raffleContract.connect(accounts[i])
+                          await accountConnectedRaffle.enterRaffle({ value: raffleEntranceFee })
                       }
                       const startingTimeStamp = await raffle.getLastTimeStamp()
 
@@ -148,31 +152,35 @@ const { developmentChains, networkConfig } = require("../helper-hardhat-config")
                                   // Now lets get the ending values...
                                   const recentWinner = await raffle.getRecentWinner()
                                   const raffleState = await raffle.getRaffleState()
-                                  const winnerBalance = await accounts[2].getBalance()
                                   const endingTimeStamp = await raffle.getLastTimeStamp()
+                                  const numPlayers = await raffle.getNumberOfPlayers()
+                                  const winnerBalance = await accounts[1].getBalance()
+
                                   await expect(raffle.getPlayer(0)).to.be.reverted
-                                  assert.equal(recentWinner.toString(), accounts[2].address)
+                                  assert.equal(recentWinner.toString(), accounts[1].address)
+                                  assert.equal(numPlayers.toString(), "0")
                                   assert.equal(raffleState, 0)
+                                  assert(endingTimeStamp > startingTimeStamp)
                                   assert.equal(
                                       winnerBalance.toString(),
                                       startingBalance
                                           .add(
                                               raffleEntranceFee
-                                                  .mul(additionalEntrances)
+                                                  .mul(additionalEntrants)
                                                   .add(raffleEntranceFee)
                                           )
                                           .toString()
                                   )
-                                  assert(endingTimeStamp > startingTimeStamp)
+
                                   resolve()
                               } catch (e) {
                                   reject(e)
                               }
                           })
 
-                          const tx = await raffle.performUpkeep("0x")
+                          const tx = await raffle.performUpkeep([])
                           const txReceipt = await tx.wait(1)
-                          const startingBalance = await accounts[2].getBalance()
+                          const startingBalance = await accounts[1].getBalance()
                           await vrfCoordinatorV2Mock.fulfillRandomWords(
                               txReceipt.events[1].args.requestId,
                               raffle.address

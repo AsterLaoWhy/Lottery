@@ -44,7 +44,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         from: deployer,
         args: arguments,
         log: true,
-        waitConfirmations: waitBlockConfirmations,
+        waitConfirmations: 6,
     })
 
     // Verify the deployment
